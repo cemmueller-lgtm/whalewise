@@ -425,6 +425,11 @@
         <button class="mode-pill active" id="modeAll" onclick="setMode('all')">All moves</button>
         <button class="mode-pill" id="modeTop" onclick="setMode('top20')">Top 20 largest</button>
       </div>
+      <div class="mode-row">
+        <button class="mode-pill active" id="thresh1" onclick="setThreshold(1000000, this)">$1M+</button>
+        <button class="mode-pill" id="thresh5" onclick="setThreshold(5000000, this)">$5M+</button>
+        <button class="mode-pill" id="thresh10" onclick="setThreshold(10000000, this)">$10M+</button>
+      </div>
     </div>
 
     <div id="errorBanner" class="error-banner" style="display:none;"></div>
@@ -488,6 +493,7 @@ let selectedWhales = new Set();
 let filteredWhales = [...WHALES];
 let currentHours = 1;
 let currentMode = 'all';
+let currentThreshold = 1000000;
 let isLoading = false;
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -533,6 +539,13 @@ function setMode(mode) {
   currentMode = mode;
   document.getElementById('modeAll').classList.toggle('active', mode === 'all');
   document.getElementById('modeTop').classList.toggle('active', mode === 'top20');
+  loadFeed();
+}
+
+function setThreshold(val, el) {
+  currentThreshold = val;
+  document.querySelectorAll('#thresh1, #thresh5, #thresh10').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
   loadFeed();
 }
 
@@ -614,7 +627,7 @@ async function fetchTransfers(entityId, hours) {
 
   const params = new URLSearchParams({
     limit: '20',
-    usdGte: '1000000',
+    usdGte: currentThreshold.toString(),
     timeLast: ({"1":"1h","6":"6h","24":"1d","168":"7d","720":"30d"}[hours] || "24h"),
     sortKey: 'usd',
     sortDir: 'desc',
