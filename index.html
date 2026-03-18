@@ -787,15 +787,25 @@ async function loadFeed() {
       transfers = data?.transfers || [];
     }
 
-    // Deduplicate: same entity + same USD value + same timestamp = same economic event
-    const seen = new Set();
+    // Deduplicate aggressively:
+    // Pass 1: by transaction hash
+    const seenHash = new Set();
+    transfers = transfers.filter(tx => {
+      if (!tx.transactionHash) return true;
+      if (seenHash.has(tx.transactionHash)) return false;
+      seenHash.add(tx.transactionHash);
+      return true;
+    });
+    // Pass 2: by entity + token + 10-min time bucket (catches multi-leg swaps)
+    const seenEvent = new Set();
     transfers = transfers.filter(tx => {
       const entity = tx.fromAddress?.arkhamEntity?.name || tx.toAddress?.arkhamEntity?.name || tx.fromAddress?.address || '';
-      const usd = Math.round((tx.historicalUSD || 0) / 1000000);
-      const time = tx.blockTimestamp ? tx.blockTimestamp.toString().slice(0, 13) : '';
-      const key = `${entity}|${usd}|${time}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
+      const token = tx.tokenSymbol || '';
+      const ts = tx.blockTimestamp ? new Date(tx.blockTimestamp).getTime() : 0;
+      const bucket = Math.floor(ts / 600000); // 10-minute buckets
+      const key = `${entity}|${token}|${bucket}`;
+      if (seenEvent.has(key)) return false;
+      seenEvent.add(key);
       return true;
     });
 
