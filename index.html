@@ -595,12 +595,11 @@ async function fetchTransfers(entityId, hours) {
   const params = new URLSearchParams({
     limit: '20',
     usdGte: '1000000',
-    timeGte: start.toString(),
-    timeLte: end.toString(),
+    timeLast: ({"1":"1h","6":"6h","24":"1d","168":"7d","720":"30d"}[hours] || "24h"),
     sortKey: 'usd',
     sortDir: 'desc',
   });
-  if (entityId) params.append('entities', entityId);
+  if (entityId) params.append('base', entityId);
 
   const res = await fetch(`/api/arkham?path=transfers&${params.toString()}`, {
     headers: { 'x-arkham-key': arkhamKey }
@@ -622,7 +621,7 @@ async function getInterpretation(transfer) {
 
   const prompt = `You are the interpretation engine for Whalewise, a crypto whale tracking app for curious non-experts.
 
-Transaction: ${fromName} → ${toName}, ${formatAmount(transfer.tokenAmount, coin)} ${coin} (${usd})
+Transaction: ${fromName} → ${toName}, ${formatAmount(transfer.unitValue, coin)} ${coin} (${usd})
 
 Write exactly 2 sentences in plain English explaining what this likely means for a non-expert. Be factual, calm, no hype, no financial advice. Start directly with the insight.`;
 
@@ -713,14 +712,14 @@ function renderCard(tx, index, interpretation) {
         </div>
       </div>
       <div class="amount-block">
-        <div class="amount">${formatAmount(tx.tokenAmount, tx.tokenSymbol)} ${tx.tokenSymbol||'—'}</div>
+        <div class="amount">${formatAmount(tx.unitValue, tx.tokenSymbol)} ${tx.tokenSymbol||'—'}</div>
         <div class="amount-usd">≈ ${formatUSD(tx.historicalUSD)}</div>
       </div>
     </div>
     <span class="badge ${badge.cls}">${badge.label}</span>
     ${interpHTML}
     <div class="card-meta">
-      <span class="time-ago">${timeAgo(tx.blockTimestamp)}</span>
+      <span class="time-ago">${timeAgo(typeof tx.blockTimestamp === 'string' ? new Date(tx.blockTimestamp).getTime() : tx.blockTimestamp)}</span>
       <div class="meta-right">
         <span class="chain-badge">${(tx.chain||'—').toUpperCase()}</span>
         <button class="expand-btn" onclick="toggleExpand('${id}')">Details ↓</button>
