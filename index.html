@@ -431,6 +431,12 @@
         <button class="mode-pill" id="thresh5" onclick="setThreshold(5000000, this)">$5M+</button>
         <button class="mode-pill" id="thresh10" onclick="setThreshold(10000000, this)">$10M+</button>
       </div>
+      <div class="mode-row">
+        <button class="mode-pill active" id="coinAll" onclick="setCoin('', this)">All coins</button>
+        <button class="mode-pill" id="coinBTC" onclick="setCoin('bitcoin', this)">BTC</button>
+        <button class="mode-pill" id="coinETH" onclick="setCoin('ethereum', this)">ETH</button>
+        <button class="mode-pill" id="coinUSDT" onclick="setCoin('tether', this)">USDT</button>
+      </div>
     </div>
 
     <div id="errorBanner" class="error-banner" style="display:none;"></div>
@@ -495,6 +501,7 @@ let filteredWhales = [...WHALES];
 let currentHours = 1;
 let currentMode = 'all';
 let currentThreshold = 1000000;
+let currentCoin = '';
 let isLoading = false;
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -546,6 +553,13 @@ function setMode(mode) {
 function setThreshold(val, el) {
   currentThreshold = val;
   document.querySelectorAll('#thresh1, #thresh5, #thresh10').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  loadFeed();
+}
+
+function setCoin(val, el) {
+  currentCoin = val;
+  document.querySelectorAll('#coinAll, #coinBTC, #coinETH, #coinUSDT').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   loadFeed();
 }
@@ -629,6 +643,7 @@ async function fetchTransfers(entityId, hours) {
   const params = new URLSearchParams({
     limit: '20',
     usdGte: currentThreshold.toString(),
+    ...(currentCoin ? { tokens: currentCoin } : {}),
     timeLast: ({"1":"1h","6":"6h","24":"1d","168":"7d","720":"30d"}[hours] || "24h"),
     sortKey: 'usd',
     sortDir: 'desc',
