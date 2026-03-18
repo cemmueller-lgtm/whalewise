@@ -202,6 +202,14 @@
   }
   .time-tab.active { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
 
+  .mode-row { display: flex; gap: 6px; padding-bottom: 14px; }
+  .mode-pill {
+    padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border); background: transparent; color: var(--text3);
+    cursor: pointer; font-family: var(--font); transition: all 0.15s;
+  }
+  .mode-pill.active { background: var(--accent); color: white; border-color: var(--accent); }
+
   .feed { flex: 1; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
 
   .section-label {
@@ -413,6 +421,10 @@
         <button class="time-tab" data-hours="168" onclick="setTime(this)">1w</button>
         <button class="time-tab" data-hours="720" onclick="setTime(this)">1m</button>
       </div>
+      <div class="mode-row">
+        <button class="mode-pill active" id="modeAll" onclick="setMode('all')">All moves</button>
+        <button class="mode-pill" id="modeTop" onclick="setMode('top20')">Top 20 largest</button>
+      </div>
     </div>
 
     <div id="errorBanner" class="error-banner" style="display:none;"></div>
@@ -475,6 +487,7 @@ let arkhamKey = '', anthropicKey = '';
 let selectedWhales = new Set();
 let filteredWhales = [...WHALES];
 let currentHours = 1;
+let currentMode = 'all';
 let isLoading = false;
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -513,6 +526,13 @@ function setTime(el) {
   document.querySelectorAll('.time-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   currentHours = parseInt(el.dataset.hours);
+  loadFeed();
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('modeAll').classList.toggle('active', mode === 'all');
+  document.getElementById('modeTop').classList.toggle('active', mode === 'top20');
   loadFeed();
 }
 
@@ -767,6 +787,21 @@ async function loadFeed() {
       transfers = data?.transfers || [];
     }
 
+    // Deduplicate by transaction hash
+    const seen = new Set();
+    transfers = transfers.filter(tx => {
+      const key = tx.transactionHash || tx.id || Math.random().toString();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Top 20 mode: sort by USD desc, take top 20 regardless of whale filter
+    if (currentMode === 'top20') {
+      transfers.sort((a,b) => (b.historicalUSD||0) - (a.historicalUSD||0));
+      transfers = transfers.slice(0, 20);
+    }
+
     if (transfers.length === 0) {
       feed.innerHTML = `<div class="empty-state"><div style="font-size:32px;opacity:0.4">🐋</div><div class="empty-title">No large moves in this timeframe</div><div class="empty-sub">Try a longer timeframe or different whales</div></div>`;
       isLoading = false;
@@ -774,7 +809,8 @@ async function loadFeed() {
       return;
     }
 
-    feed.innerHTML = `<div class="section-label">${transfers.length} moves found</div>` + transfers.map((tx,i) => renderCard(tx,i,null)).join('');
+    const modeLabel = currentMode === "top20" ? `Top ${transfers.length} largest moves` : `${transfers.length} moves found`;
+    feed.innerHTML = `<div class="section-label">${modeLabel}</div>` + transfers.map((tx,i) => renderCard(tx,i,null)).join('');
 
     if (anthropicKey) {
       transfers.slice(0,5).forEach(async (tx, i) => {
