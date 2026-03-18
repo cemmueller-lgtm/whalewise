@@ -787,10 +787,13 @@ async function loadFeed() {
       transfers = data?.transfers || [];
     }
 
-    // Deduplicate by transaction hash
+    // Deduplicate: same entity + same USD value + same timestamp = same economic event
     const seen = new Set();
     transfers = transfers.filter(tx => {
-      const key = tx.transactionHash || tx.id || Math.random().toString();
+      const entity = tx.fromAddress?.arkhamEntity?.name || tx.toAddress?.arkhamEntity?.name || tx.fromAddress?.address || '';
+      const usd = Math.round((tx.historicalUSD || 0) / 1000000);
+      const time = tx.blockTimestamp ? tx.blockTimestamp.toString().slice(0, 13) : '';
+      const key = `${entity}|${usd}|${time}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
